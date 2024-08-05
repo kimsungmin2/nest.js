@@ -21,7 +21,7 @@ export class AuthController {
   })
   @UseGuards(KakaoAuthGuard)
   @Get('kakao')
-  @HttpCode(HttpStatus.TEMPORARY_REDIRECT)
+  @HttpCode(HttpStatus.FOUND)
   redirectToKakaoAuth(@Res() res): void {
     const KAKAO_REST_API_KEY =
       this.configService.get<string>('KAKAO_CLIENT_ID');

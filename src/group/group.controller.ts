@@ -24,7 +24,7 @@ export class GroupController {
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '그룹 생성' })
   @Post('create')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   async createGroup(@Body() createGroupDto: CreateGroupDto, @Req() req) {
     const { userId } = req.user;
 
@@ -39,7 +39,7 @@ export class GroupController {
   @UseGuards(AuthGuard('groupJwt'))
   @ApiOperation({ summary: '그룹 업데이트' })
   @Patch('update/:groupId')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   async updateGroup(
     @Body() updateGroupDto: UpdateGroupDto,
     @Param('groupId') groupId: number,
