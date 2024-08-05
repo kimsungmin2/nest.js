@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { jwtData } from '../utils/data/jwt.data';
+import { ConfigService } from '@nestjs/config';
+import { AuthRepository } from './auth.repository';
 
 @Injectable()
 export class AuthService {
@@ -12,15 +14,13 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
+    private readonly authRepository: AuthRepository,
   ) {}
 
   async createToken(
     email: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.findByEmail(email);
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
 
     const refreshTokenCacheKey = `loginId:${user.id}`;
     const payload = { sub: user.id };
@@ -54,41 +54,42 @@ export class AuthService {
     provider: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const isExistingUser = await this.findByEmail(email);
-        if (isExistingUser) {
-          throw new ConflictException('존재하는 이메일 입니다.');
-        }
+      const isExistingUser = await this.findByEmail(email);
+      if (isExistingUser) {
+        throw new ConflictException('존재하는 이메일 입니다.');
+      }
 
-        const user = await tx.user.create({
-          data: {
-            email,
-            nickName,
-            provider,
-          },
-        });
+      const user = await this.authRepository.createUser(
+        email,
+        nickName,
+        provider,
+      );
 
-        return user;
-      });
+      return user;
     } catch (error) {
       if (error instanceof ConflictException) {
         throw error;
       }
+    }
+  }
+
+  private async findByEmail(email: string) {
+    try {
+      return await this.authRepository.findByEmail(email);
+    } catch (error) {
       throw new InternalServerErrorException(
-        '사용자 생성 중 오류가 발생했습니다.',
+        '이메일을 찾는 중에 오류가 발생했습니다.',
       );
     }
   }
 
-  async findByEmail(email: string) {
-    return await this.prisma.users.findUnique({
-      where: {
-        email,
-      },
-      select: {
-        id: true,
-        nickName: true,
-      },
-    });
+  public async findById(id: string) {
+    try {
+      return await this.authRepository.findById(id);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        '아이디를 찾는 중에 오류가 발생했습니다.',
+      );
+    }
   }
 }

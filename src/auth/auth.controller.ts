@@ -34,6 +34,7 @@ export class AuthController {
 
   @UseGuards(KakaoAuthGuard)
   @Get('kakao/callback')
+  @HttpCode(HttpStatus.OK)
   async kakaoCallbacks(@Req() req, @Res() res) {
     const accessToken = req.user.accessToken;
 

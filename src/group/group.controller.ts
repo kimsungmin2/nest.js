@@ -1,34 +1,66 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { GroupService } from './group.service';
+import { ApiOperation } from '@nestjs/swagger';
 import { CreateGroupDto } from './dto/create-group.dto';
+import { AuthGuard } from '@nestjs/passport';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { GetSearchDto } from './dto/getCode.dto';
 
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
-  @Post()
-  create(@Body() createGroupDto: CreateGroupDto) {
-    return this.groupService.create(createGroupDto);
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: '그룹 생성' })
+  @Post('create')
+  @HttpCode(HttpStatus.OK)
+  async createGroup(@Body() createGroupDto: CreateGroupDto, @Req() req) {
+    const { userId } = req.user;
+
+    const group = await this.groupService.createGroup(createGroupDto, userId);
+
+    return {
+      message: '그룹 생성에 성공하였습니다.',
+      data: group,
+    };
   }
 
-  @Get()
-  findAll() {
-    return this.groupService.findAll();
+  @UseGuards(AuthGuard('groupJwt'))
+  @ApiOperation({ summary: '그룹 업데이트' })
+  @Patch('update/:groupId')
+  @HttpCode(HttpStatus.OK)
+  async updateGroup(
+    @Body() updateGroupDto: UpdateGroupDto,
+    @Param('groupId') groupId: number,
+  ) {
+    const groupUpdate = await this.groupService.updateGroup(
+      updateGroupDto,
+      groupId,
+    );
+
+    return {
+      message: '그룹 업데이트에 성공하였습니다.',
+      data: groupUpdate,
+    };
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.groupService.findOne(+id);
-  }
+  @ApiOperation({ summary: '그룹 코드 조회' })
+  @Get('')
+  @HttpCode(HttpStatus.OK)
+  async getGroup(@Body() getSearchDto: GetSearchDto) {
+    const getGroup = await this.groupService.searchGroups(getSearchDto);
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateGroupDto: UpdateGroupDto) {
-    return this.groupService.update(+id, updateGroupDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.groupService.remove(+id);
+    return { data: getGroup };
   }
 }
