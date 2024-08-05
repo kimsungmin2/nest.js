@@ -80,7 +80,7 @@ export class AuthService {
     }
   }
 
-  private async findByEmail(email: string) {
+  async findByEmail(email: string) {
     return await this.prisma.users.findUnique({
       where: {
         email,
