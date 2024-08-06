@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -65,5 +61,24 @@ export class AuthRepository {
         throw error;
       }
     }
+  }
+
+  async updateName(name: string, id: string) {
+    return await this.prisma.users.upadte({
+      where: {
+        id,
+      },
+      data: {
+        name,
+      },
+    });
+  }
+
+  async deleteUser(id: string) {
+    return await this.prisma.users.delete({
+      where: {
+        id,
+      },
+    });
   }
 }
