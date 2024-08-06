@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import _ from 'lodash';
 import { AuthService } from 'src/auth/auth.service';
-import { Role } from '../data/role.data';
 
 @Injectable()
 export class GroupJwtStrategy extends PassportStrategy(Strategy) {
@@ -18,6 +17,7 @@ export class GroupJwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromExtractors([GroupJwtStrategy.extractJWT]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET_KEY,
+      passReqToCallback: true, 
     });
   }
 
@@ -34,16 +34,17 @@ export class GroupJwtStrategy extends PassportStrategy(Strategy) {
     return null;
   }
 
-  async validate(payload: any) {
+  async validate(req: RequestType, payload: any) {
     const user = await this.authService.findById(payload.id);
 
     if (_.isNil(user)) {
       throw new NotFoundException('해당하는 사용자를 찾을 수 없습니다.');
     }
 
-    const manager = await this.groupService.findByManager(user.id);
+    const groupId = parseInt(req.params.groupId, 10);
+    const manager = await this.groupService.findByGroup(groupId);
 
-    if (_.isNil(manager) || manager.role !== Role.MANAGER) {
+    if (!manager || manager.owner !== user.id) {
       throw new ForbiddenException('권한이 없는 유저입니다.');
     }
 

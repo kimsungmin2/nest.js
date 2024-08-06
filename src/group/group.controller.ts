@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Param,
   Patch,
   Post,
   Req,
@@ -24,6 +23,8 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { GetSearchDto } from './dto/getCode.dto';
+import { GroupId } from 'src/utils/decorater/group.decorater';
+import { InvitationUser } from './dto/invitationUser.dto';
 
 @ApiTags('Group')
 @Controller('group')
@@ -61,12 +62,28 @@ export class GroupController {
   @HttpCode(HttpStatus.CREATED)
   async updateGroup(
     @Body() updateGroupDto: UpdateGroupDto,
-    @Param('groupId') groupId: number,
+    @GroupId() groupId: number,
   ) {
     const updateGroup = await this.groupService.updateGroup(
       updateGroupDto,
       groupId,
     );
+
+    return {
+      message: '그룹 업데이트에 성공하였습니다.',
+      data: updateGroup,
+    };
+  }
+
+  @UseGuards(AuthGuard('groupJwt'))
+  @ApiOperation({ summary: '그룹 코드 변경' })
+  @ApiCookieAuth('accessToken')
+  @ApiResponse({ status: 201 })
+  @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
+  @Patch('update/:groupId')
+  @HttpCode(HttpStatus.CREATED)
+  async updateCode(@GroupId() groupId: number) {
+    const updateGroup = await this.groupService.updateCode(groupId);
 
     return {
       message: '그룹 업데이트에 성공하였습니다.',
@@ -96,12 +113,34 @@ export class GroupController {
   @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
   @Delete('delete')
   @HttpCode(HttpStatus.OK)
-  async deleteGroup(@Param('groupId') groupId: number) {
+  async deleteGroup(@GroupId() groupId: number) {
     const deleteGroup = await this.groupService.deleteGroup(groupId);
 
     return {
       message: '그룹이 정상적으로 해체되었습니다.',
       data: deleteGroup,
+    };
+  }
+
+  @UseGuards(AuthGuard('groupJwt'))
+  @ApiOperation({ summary: '그룹원 승인' })
+  @ApiCookieAuth('accessToken')
+  @ApiResponse({ status: 201, type: InvitationUser })
+  @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
+  @Patch('update/:groupId')
+  @HttpCode(HttpStatus.CREATED)
+  async invitationUser(
+    @Body() invitationUser: InvitationUser,
+    @GroupId() groupId: number,
+  ) {
+    const isAcceptUser = await this.groupService.invitationUser(
+      invitationUser,
+      groupId,
+    );
+
+    return {
+      message: '유저 가입 승인이 완료 되었습니다.',
+      data: isAcceptUser,
     };
   }
 }
