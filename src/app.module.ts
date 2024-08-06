@@ -5,9 +5,10 @@ import { AuthModule } from './auth/auth.module';
 import { AwsModule } from './aws/aws.module';
 import { GroupModule } from './group/group.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { GroupUserModule } from './group-user/group-user.module';
 
 @Module({
-  imports: [AuthModule, AwsModule, GroupModule, PrismaModule],
+  imports: [AuthModule, AwsModule, GroupModule, PrismaModule, GroupUserModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -3,13 +3,14 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GroupOption } from 'src/utils/data/group.data';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { InvitationUser } from './dto/invitationUser.dto';
 
 @Injectable()
 export class GroupRepository {
   constructor(private prisma: PrismaService) {}
 
   async createGroup(createGroupDto: CreateGroupDto, id: string) {
-    return await this.prisma.groups.create({
+    return await this.prisma.group.create({
       data: {
         id,
         ...createGroupDto,
@@ -18,7 +19,7 @@ export class GroupRepository {
   }
 
   async updateGroup(updateGroupDto: UpdateGroupDto, id: number) {
-    return await this.prisma.groups.update({
+    return await this.prisma.group.update({
       where: {
         id,
       },
@@ -30,7 +31,7 @@ export class GroupRepository {
 
   async findByGroup(groupId: number, option?: number) {
     try {
-      const group = await this.prisma.groups.findFirst({
+      const group = await this.prisma.group.findFirst({
         where: {
           id: groupId,
         },
@@ -40,8 +41,8 @@ export class GroupRepository {
         throw new NotFoundException('존재하지 않는 그룹 입니다.');
       }
 
-      if (option && option === GroupOption.userGroups) {
-        const groupUsers = await this.prisma.groupsUsers.findMany({
+      if (option && option === GroupOption.usergroup) {
+        const groupUsers = await this.prisma.groupUsers.findMany({
           where: {
             groupId,
           },
@@ -62,9 +63,7 @@ export class GroupRepository {
   }
 
   async deleteGroup(groupId: number) {
-    await this.findByGroup(groupId);
-
-    return await this.prisma.groups.delete({
+    return await this.prisma.group.delete({
       where: {
         id: groupId,
       },
@@ -73,7 +72,7 @@ export class GroupRepository {
 
   async getCodeGroup(code: string) {
     try {
-      const group = await this.prisma.groups.findUnique({
+      const group = await this.prisma.group.findFirst({
         where: {
           code,
         },
@@ -91,9 +90,9 @@ export class GroupRepository {
     }
   }
 
-  async searchGroups(search: string) {
+  async searchgroup(search: string) {
     try {
-      const groups = await this.prisma.groups.findMany({
+      const group = await this.prisma.group.findMany({
         where: {
           name: {
             startsWith: search,
@@ -101,15 +100,26 @@ export class GroupRepository {
         },
       });
 
-      if (groups.length === 0) {
+      if (group.length === 0) {
         throw new NotFoundException('검색한 그룹이 존재하지 않습니다.');
       }
 
-      return groups;
+      return group;
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
     }
+  }
+
+  async updateCode(id: number, code: string) {
+    return await this.prisma.group.upadte({
+      where: {
+        id,
+      },
+      data: {
+        code,
+      },
+    });
   }
 }

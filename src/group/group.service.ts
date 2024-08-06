@@ -8,14 +8,20 @@ import { GroupRepository } from './group.repository';
 import { v4 as uuidv4 } from 'uuid';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { GetSearchDto } from './dto/getCode.dto';
+import { InvitationUser } from './dto/invitationUser.dto';
+import { iif } from 'rxjs';
+import { GroupUserService } from 'src/group-user/group-user.service';
 
 @Injectable()
 export class GroupService {
-  constructor(private readonly groupRepository: GroupRepository) {}
+  constructor(
+    private readonly groupRepository: GroupRepository,
+    private readonly groupUserService: GroupUserService,
+  ) {}
 
-  async createGroup(createGroupDto: CreateGroupDto, id: string) {
+  async createGroup(createGroupDto: CreateGroupDto, groupId: string) {
     try {
-      return await this.groupRepository.createGroup(createGroupDto, id);
+      return await this.groupRepository.createGroup(createGroupDto, groupId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -26,13 +32,22 @@ export class GroupService {
     }
   }
 
-  async updateGroup(updateGroupDto: UpdateGroupDto, id: number) {
+  async updateCode(groupId: number) {
     try {
-      if (updateGroupDto.code) {
-        updateGroupDto.code = uuidv4();
-      }
+      await this.getGroup(groupId);
+      const code = uuidv4();
+      return await this.groupRepository.updateCode(groupId, code);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        '코드 업데이트 중 오류가 발생했습니다.',
+      );
+    }
+  }
 
-      return await this.groupRepository.updateGroup(updateGroupDto, id);
+  async updateGroup(updateGroupDto: UpdateGroupDto, groupId: number) {
+    try {
+      await this.getGroup(groupId);
+      return await this.groupRepository.updateGroup(updateGroupDto, groupId);
     } catch (error) {
       throw new InternalServerErrorException(
         '그룹 업데이트 중 오류가 발생했습니다.',
@@ -52,6 +67,7 @@ export class GroupService {
 
   async deleteGroup(groupId: number) {
     try {
+      await this.getGroup(groupId);
       return await this.groupRepository.deleteGroup(groupId);
     } catch (error) {
       throw new InternalServerErrorException(
@@ -70,6 +86,21 @@ export class GroupService {
     } catch (error) {
       throw new InternalServerErrorException(
         '그룹 조회 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async invitationUser(invitationUser: InvitationUser, groupId: number) {
+    try {
+      await this.groupUserService.findByUser(invitationUser.userId, groupId);
+
+      return await this.groupUserService.invitationUser(
+        invitationUser,
+        groupId,
+      );
+    } catch (error) {
+      throw new InternalServerErrorException(
+        '그룹 가입 승인 중 오류가 발생했습니다.',
       );
     }
   }

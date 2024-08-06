@@ -6,7 +6,7 @@ export class AuthRepository {
   constructor(private prisma: PrismaService) {}
 
   async createUser(email: string, nickName: string, provider: string) {
-    return this.prisma.users.create({
+    return this.prisma.user.create({
       data: {
         email,
         nickName,
@@ -17,11 +17,12 @@ export class AuthRepository {
 
   async findByEmail(email: string) {
     try {
-      const isExistingEmail = await this.prisma.users.findFirst({
+      const isExistingEmail = await this.prisma.user.findFirst({
         where: {
           email,
         },
         select: {
+          id: true,
           email: true,
           nickName: true,
         },
@@ -41,7 +42,7 @@ export class AuthRepository {
 
   async findById(id: string) {
     try {
-      const isExistingId = await this.prisma.users.findFirst({
+      const isExistingId = await this.prisma.user.findFirst({
         where: {
           id,
         },
@@ -64,7 +65,7 @@ export class AuthRepository {
   }
 
   async updateName(name: string, id: string) {
-    return await this.prisma.users.upadte({
+    return await this.prisma.user.upadte({
       where: {
         id,
       },
@@ -75,9 +76,20 @@ export class AuthRepository {
   }
 
   async deleteUser(id: string) {
-    return await this.prisma.users.delete({
+    return await this.prisma.user.delete({
       where: {
         id,
+      },
+    });
+  }
+
+  async updateToken(refreshToken: string, id: number) {
+    await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        refreshToken,
       },
     });
   }

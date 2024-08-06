@@ -35,6 +35,8 @@ export class AuthService {
         expiresIn: jwtData.refreshToken,
       });
 
+      await this.authRepository.updateToken(refreshToken, user.id);
+
       return { accessToken, refreshToken };
     } catch (error) {
       throw new InternalServerErrorException(
