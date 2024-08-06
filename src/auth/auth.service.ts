@@ -7,12 +7,12 @@ import {
 import { jwtData } from '../utils/data/jwt.data';
 import { ConfigService } from '@nestjs/config';
 import { AuthRepository } from './auth.repository';
+import { UpDateNameDto } from './dto/request/update-auth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly redisService: RedisService,
     private readonly configService: ConfigService,
     private readonly authRepository: AuthRepository,
   ) {}
@@ -20,32 +20,27 @@ export class AuthService {
   async createToken(
     email: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const user = await this.findByEmail(email);
-
-    const refreshTokenCacheKey = `loginId:${user.id}`;
-    const payload = { sub: user.id };
-
-    const accessToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>(JWT_SECRET_KEY),
-      expiresIn: jwtData.accessToken,
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get<string>(REFRESH_SECRET),
-      expiresIn: jwtData.refreshToken,
-    });
-
     try {
-      await this.redisService
-        .getCluster()
-        .set(refreshTokenCacheKey, refreshToken, 'EX', jwtData.refreshToken);
+      const user = await this.findByEmail(email);
+
+      const payload = { sub: user.id };
+
+      const accessToken = this.jwtService.sign(payload, {
+        secret: this.configService.get<string>('JWT_SECRET_KEY'),
+        expiresIn: jwtData.accessToken,
+      });
+
+      const refreshToken = this.jwtService.sign(payload, {
+        secret: this.configService.get<string>('REFRESH_SECRET'),
+        expiresIn: jwtData.refreshToken,
+      });
+
+      return { accessToken, refreshToken };
     } catch (error) {
       throw new InternalServerErrorException(
-        '리프레시 토큰 저장 중 오류가 발생했습니다.',
+        '토큰 생성중 중 오류가 발생했습니다.',
       );
     }
-
-    return { accessToken, refreshToken };
   }
 
   async createProviderUser(
@@ -70,15 +65,18 @@ export class AuthService {
       if (error instanceof ConflictException) {
         throw error;
       }
+      throw new InternalServerErrorException(
+        '유저 생성 중 오류가 발생했습니다.',
+      );
     }
   }
 
-  private async findByEmail(email: string) {
+  public async findByEmail(email: string) {
     try {
       return await this.authRepository.findByEmail(email);
     } catch (error) {
       throw new InternalServerErrorException(
-        '이메일을 찾는 중에 오류가 발생했습니다.',
+        '이메일 조회 중 오류가 발생했습니다.',
       );
     }
   }
@@ -88,7 +86,28 @@ export class AuthService {
       return await this.authRepository.findById(id);
     } catch (error) {
       throw new InternalServerErrorException(
-        '아이디를 찾는 중에 오류가 발생했습니다.',
+        '아이디 조회 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async updateName(updateNameDto: UpDateNameDto, id: string) {
+    try {
+      const { name } = updateNameDto;
+      return await this.authRepository.updateName(name, id);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        '이름 업데이트 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async deleteName(id: string) {
+    try {
+      return await this.authRepository.deleteUser(id);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        '유저 삭제 중 오류가 발생했습니다.',
       );
     }
   }
