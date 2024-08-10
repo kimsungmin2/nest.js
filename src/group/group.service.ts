@@ -1,27 +1,23 @@
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupRepository } from './group.repository';
 import { v4 as uuidv4 } from 'uuid';
-import { UpdateGroupDto } from './dto/update-group.dto';
-import { GetSearchDto } from './dto/getCode.dto';
-import { InvitationUser } from './dto/invitationUser.dto';
-import { iif } from 'rxjs';
-import { GroupUserService } from 'src/group-user/group-user.service';
+import { CreateGroupDto } from './dto/request/createGroup.dto';
+import { UpdateGroupDto } from './dto/request/updateGroup.dto';
+import { GetCodeDto } from './dto/request/getCode.dto';
+import { GetSearchDto } from './dto/request/getSearch.dto';
 
 @Injectable()
 export class GroupService {
-  constructor(
-    private readonly groupRepository: GroupRepository,
-    private readonly groupUserService: GroupUserService,
-  ) {}
+  constructor(private readonly groupRepository: GroupRepository) {}
 
-  async createGroup(createGroupDto: CreateGroupDto, groupId: string) {
+  async createGroup(createGroupDto: CreateGroupDto, userId: number) {
     try {
-      return await this.groupRepository.createGroup(createGroupDto, groupId);
+      return await this.groupRepository.createGroup(createGroupDto, userId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -32,8 +28,9 @@ export class GroupService {
     }
   }
 
-  async updateCode(groupId: number) {
+  async updateCode(groupId: number, userId: number) {
     try {
+      await this.checkOwner(groupId, userId);
       await this.getGroup(groupId);
       const code = uuidv4();
       return await this.groupRepository.updateCode(groupId, code);
@@ -44,10 +41,12 @@ export class GroupService {
     }
   }
 
-  async updateGroup(updateGroupDto: UpdateGroupDto, groupId: number) {
+  async updateGroup(updateGroupDto: UpdateGroupDto, userId: number) {
     try {
+      const { groupId, comment, name } = updateGroupDto;
+      await this.checkOwner(groupId, userId);
       await this.getGroup(groupId);
-      return await this.groupRepository.updateGroup(updateGroupDto, groupId);
+      return await this.groupRepository.updateGroup(comment, name, groupId);
     } catch (error) {
       throw new InternalServerErrorException(
         '그룹 업데이트 중 오류가 발생했습니다.',
@@ -55,9 +54,9 @@ export class GroupService {
     }
   }
 
-  async getGroup(groupId: number, option?: number) {
+  async getGroup(groupId: number) {
     try {
-      return await this.groupRepository.findByGroup(groupId, option);
+      return await this.groupRepository.findByGroup(groupId);
     } catch (error) {
       throw new InternalServerErrorException(
         '그룹을 찾는 중에 오류가 발생했습니다.',
@@ -65,8 +64,9 @@ export class GroupService {
     }
   }
 
-  async deleteGroup(groupId: number) {
+  async deleteGroup(groupId: number, userId: number) {
     try {
+      await this.checkOwner(groupId, userId);
       await this.getGroup(groupId);
       return await this.groupRepository.deleteGroup(groupId);
     } catch (error) {
@@ -76,13 +76,9 @@ export class GroupService {
     }
   }
 
-  async searchGroups(getSearchDto: GetSearchDto) {
+  async getCodeGroup(getCodeDto: GetCodeDto) {
     try {
-      if (getSearchDto && getSearchDto.code) {
-        return await this.groupRepository.getCodeGroup(getSearchDto.code);
-      } else if (getSearchDto && getSearchDto.search) {
-        return await this.groupRepository.searchGroups(getSearchDto.search);
-      }
+      return await this.groupRepository.getCodeGroup(getCodeDto.code);
     } catch (error) {
       throw new InternalServerErrorException(
         '그룹 조회 중 오류가 발생했습니다.',
@@ -90,18 +86,27 @@ export class GroupService {
     }
   }
 
-  async invitationUser(invitationUser: InvitationUser, groupId: number) {
+  async searchGroups(getSearchDto: GetSearchDto) {
     try {
-      await this.groupUserService.findByUser(invitationUser.userId, groupId);
-
-      return await this.groupUserService.invitationUser(
-        invitationUser,
-        groupId,
-      );
+      return await this.groupRepository.searchGroups(getSearchDto.search);
     } catch (error) {
       throw new InternalServerErrorException(
-        '그룹 가입 승인 중 오류가 발생했습니다.',
+        '그룹 조회 중 오류가 발생했습니다.',
       );
+    }
+  }
+
+  async checkOwner(groupid: number, userId: number) {
+    try {
+      const owner = await this.getGroup(groupid);
+
+      if (owner?.owner !== userId) {
+        throw new ForbiddenException('권한이 없습니다.');
+      }
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
     }
   }
 }

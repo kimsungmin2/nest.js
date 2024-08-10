@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { jwtData } from '../utils/data/jwt.data';
 import { ConfigService } from '@nestjs/config';
-import { AuthRepository } from './auth.repository';
 import { UpDateNameDto } from './dto/request/update-auth.dto';
+import { JwtService } from '@nestjs/jwt';
+import { AuthRepository } from './auth.repository';
 
 @Injectable()
 export class AuthService {
@@ -17,11 +18,20 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
   ) {}
 
+  /**
+   * OAtuh2 로그인 토큰 생성
+   */
   async createToken(
     email: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const user = await this.findByEmail(email);
+
+      if (!user) {
+        throw new NotFoundException(
+          '해당 이메일을 가진 사용자를 찾을 수 없습니다.',
+        );
+      }
 
       const payload = { sub: user.id };
 
@@ -45,11 +55,10 @@ export class AuthService {
     }
   }
 
-  async createProviderUser(
-    email: string,
-    nickName: string,
-    provider: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  /**
+   * OAtuh2 로그인 유저 생성
+   */
+  async createProviderUser(email: string, nickName: string, provider: string) {
     try {
       const isExistingUser = await this.findByEmail(email);
       if (isExistingUser) {
@@ -73,6 +82,9 @@ export class AuthService {
     }
   }
 
+  /**
+   * 유저 이메일로 조회
+   */
   public async findByEmail(email: string) {
     try {
       return await this.authRepository.findByEmail(email);
@@ -83,33 +95,15 @@ export class AuthService {
     }
   }
 
-  public async findById(id: string) {
+  /**
+   * 유저 ID로 조회
+   */
+  public async findById(id: number) {
     try {
       return await this.authRepository.findById(id);
     } catch (error) {
       throw new InternalServerErrorException(
         '아이디 조회 중 오류가 발생했습니다.',
-      );
-    }
-  }
-
-  async updateName(updateNameDto: UpDateNameDto, id: string) {
-    try {
-      const { name } = updateNameDto;
-      return await this.authRepository.updateName(name, id);
-    } catch (error) {
-      throw new InternalServerErrorException(
-        '이름 업데이트 중 오류가 발생했습니다.',
-      );
-    }
-  }
-
-  async deleteName(id: string) {
-    try {
-      return await this.authRepository.deleteUser(id);
-    } catch (error) {
-      throw new InternalServerErrorException(
-        '유저 삭제 중 오류가 발생했습니다.',
       );
     }
   }

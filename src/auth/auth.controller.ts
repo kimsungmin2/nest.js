@@ -11,7 +11,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { KakaoAuthGuard } from 'src/utils/guard/kakao.guard';
 import { UpDateNameDto } from './dto/request/update-auth.dto';
 import { AuthService } from './auth.service';
 import {
@@ -21,7 +20,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { userInfoDto } from './dto/response/userInfo.dto';
+import { userInfoDto } from './dto/response/userInfo';
+import { KakaoAuthGuard } from 'src/utils/guard/kakao.guard';
+import { Request, Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -44,6 +45,17 @@ export class AuthController {
   //   res.redirect(kakaoAuthURL);
   // }
 
+  /**
+   * 카카오 로그인 콜백(이후 클라이언트 만들어서 테스트 예정)
+   * userFlow => 유저 로그인 시도 => 프론트에서 인가 코드받고 , 카카오에서 콜백 받은 후 서버로 콜백 보냄 => 이후 로그인 성공
+   * guard에서 email 추출 후 findByEmail로 이미 가입한 유저인지 판단, 이후 없을시 createProviderUser로 보내서 가입 하게함.
+   * 이후 createToken에서 refreshToken, accessToken발급하고 refreshToken은 user DB에 업데이트 , accessToken은 클라이언트에게 전달
+   * Controller(kakaoCallbacks)
+   * Service(createToken, createProviderUser, findByEmail)
+   * Repository(findByEmail, createUser, updateToken)
+   * RequsetDto()
+   * ResponseDto(userInfoDto)
+   */
   @ApiOperation({
     summary: '카카오 로그인 콜백',
   })
@@ -52,51 +64,16 @@ export class AuthController {
   @ApiResponse({ status: 200, type: userInfoDto })
   @Get('kakao/callback')
   @HttpCode(HttpStatus.OK)
-  async kakaoCallbacks(@Req() req, @Res() res) {
-    const accessToken = req.user.accessToken;
+  async kakaoCallbacks(@Req() req: Request, @Res() res: Response) {
+    const user = req.user as { accessToken?: string } | undefined;
 
-    res.cookie('authorization', `Bearer ${accessToken}`, {
-      maxAge: 1000 * 60 * 60 * 12,
-      httpOnly: false,
-      secure: false,
-    });
-    res.redirect('/');
-  }
+    if (!user || !user.accessToken) {
+      return res
+        .status(HttpStatus.UNAUTHORIZED)
+        .json({ message: 'Unauthorized' });
+    }
 
-  @ApiOperation({
-    summary: '이름 업데이트',
-  })
-  @UseGuards(AuthGuard('jwt'))
-  @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 201 })
-  @Patch('update')
-  @ApiBody({ type: UpDateNameDto })
-  @HttpCode(HttpStatus.CREATED)
-  async updateName(@Body() upDateNameDto: UpDateNameDto, @Req() req) {
-    const { userId } = req.user;
-
-    const user = await this.authService.updateName(upDateNameDto, userId);
-    return {
-      message: '이름 변경에 성공하였습니다.',
-      data: user,
-    };
-  }
-
-  @ApiOperation({
-    summary: '유저 회원 탈퇴',
-  })
-  @UseGuards(AuthGuard('jwt'))
-  @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 200 })
-  @Delete('delete')
-  @HttpCode(HttpStatus.OK)
-  async deleteUser(@Req() req) {
-    const { userId } = req.user;
-
-    const user = await this.authService.deleteName(userId);
-    return {
-      message: '회원 탈퇴가 성공적으로 요청됐습니다.',
-      data: user,
-    };
+    const accessToken = user.accessToken;
+    return res.json({ accessToken });
   }
 }

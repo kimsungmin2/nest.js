@@ -1,35 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CreateGroupDto } from './dto/create-group.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { GroupOption } from 'src/utils/data/group.data';
-import { UpdateGroupDto } from './dto/update-group.dto';
-import { InvitationUser } from './dto/invitationUser.dto';
+import { CreateGroupDto } from './dto/request/createGroup.dto';
 
 @Injectable()
 export class GroupRepository {
   constructor(private prisma: PrismaService) {}
 
-  async createGroup(createGroupDto: CreateGroupDto, id: string) {
+  async createGroup(createGroupDto: CreateGroupDto, userId: number) {
     return await this.prisma.group.create({
       data: {
-        id,
+        owner: userId,
         ...createGroupDto,
       },
     });
   }
 
-  async updateGroup(updateGroupDto: UpdateGroupDto, id: number) {
+  async updateGroup(comment: string, name: string, groupId: number) {
     return await this.prisma.group.update({
       where: {
-        id,
+        id: groupId,
       },
       data: {
-        ...updateGroupDto,
+        name,
+        comment,
       },
     });
   }
 
-  async findByGroup(groupId: number, option?: number) {
+  async findByGroup(groupId: number) {
     try {
       const group = await this.prisma.group.findFirst({
         where: {
@@ -39,19 +37,6 @@ export class GroupRepository {
 
       if (!group) {
         throw new NotFoundException('존재하지 않는 그룹 입니다.');
-      }
-
-      if (option && option === GroupOption.usergroup) {
-        const groupUsers = await this.prisma.groupUsers.findMany({
-          where: {
-            groupId,
-          },
-          include: {
-            users: true,
-          },
-        });
-
-        return { group, groupUsers };
       }
 
       return group;
@@ -90,7 +75,7 @@ export class GroupRepository {
     }
   }
 
-  async searchgroup(search: string) {
+  async searchGroups(search: string) {
     try {
       const group = await this.prisma.group.findMany({
         where: {
@@ -113,7 +98,7 @@ export class GroupRepository {
   }
 
   async updateCode(id: number, code: string) {
-    return await this.prisma.group.upadte({
+    return await this.prisma.group.update({
       where: {
         id,
       },

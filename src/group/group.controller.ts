@@ -19,128 +19,156 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CreateGroupDto } from './dto/create-group.dto';
+
 import { AuthGuard } from '@nestjs/passport';
-import { UpdateGroupDto } from './dto/update-group.dto';
-import { GetSearchDto } from './dto/getCode.dto';
-import { GroupId } from 'src/utils/decorater/group.decorater';
-import { InvitationUser } from './dto/invitationUser.dto';
+import { CreateGroupDto } from './dto/request/createGroup.dto';
+import { JwtRequest } from 'src/utils/data/jwt.data';
+import { UpdateGroupDto } from './dto/request/updateGroup.dto';
+import { GetGroupDto } from './dto/request/getGroup';
+import { GetCodeDto } from './dto/request/getCode.dto';
+import { GetSearchDto } from './dto/request/getSearch.dto';
+import { CreateGroupResponseDto } from './dto/response/createGroup.dto';
+import { GetGroupsDto } from './dto/response/getGroups.dto';
+import { UpadteGroupResponseDto } from './dto/response/updateGroupResponse.dto';
 
 @ApiTags('Group')
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
+  /**
+   * userFlow => 그룹 생성 요청 => 그룹 생성 성공
+   * serverFlow => 생성 생성 생성
+   * 3계층 순서로 생성 요청을 보냄
+   * Controller(createGroup)
+   * Service(createGroup)
+   * Repository(createGroup)
+   * RequsetDto(CreateGroupDto)
+   * ResponseDto(CreateGroupResponseDto)
+   */
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '그룹 생성' })
   @ApiCookieAuth('accessToken')
   @ApiBody({ type: CreateGroupDto })
-  @ApiResponse({ status: 201, type: CreateGroupDto })
+  @ApiResponse({ status: 201, type: CreateGroupResponseDto })
   @Post('create')
   @HttpCode(HttpStatus.CREATED)
-  async createGroup(@Body() createGroupDto: CreateGroupDto, @Req() req) {
+  async createGroup(
+    @Body() createGroupDto: CreateGroupDto,
+    @Req() req: JwtRequest,
+  ) {
     const { userId } = req.user;
 
-    const createGroup = await this.groupService.createGroup(
-      createGroupDto,
-      userId,
-    );
-
-    return {
-      message: '그룹 생성에 성공하였습니다.',
-      data: createGroup,
-    };
+    return await this.groupService.createGroup(createGroupDto, userId);
   }
 
-  @UseGuards(AuthGuard('groupJwt'))
+  /**
+   * userFlow => 그룹 이름, 코멘트 업데이트 요청 => 그룹 업데이트 성공
+   * serverFlow => 오너인지 확인 후 오너가 맞다면 => 업데이트
+   * 3계층 순서로 요청을 보냄
+   * Controller(updateGroup)
+   * Service(updateGroup,getGroup,checkOwner)
+   * Repository(updateGroup)
+   * RequsetDto(UpdateGroupDto)
+   * ResponseDto(UpdateGroupDto)
+   */
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '그룹 업데이트' })
   @ApiCookieAuth('accessToken')
   @ApiBody({ type: UpdateGroupDto })
-  @ApiResponse({ status: 201, type: UpdateGroupDto })
-  @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
-  @Patch('update/:groupId')
+  @ApiResponse({ status: 201, type: UpadteGroupResponseDto })
+  @Patch('update')
   @HttpCode(HttpStatus.CREATED)
   async updateGroup(
     @Body() updateGroupDto: UpdateGroupDto,
-    @GroupId() groupId: number,
+    @Req() req: JwtRequest,
   ) {
-    const updateGroup = await this.groupService.updateGroup(
-      updateGroupDto,
-      groupId,
-    );
-
-    return {
-      message: '그룹 업데이트에 성공하였습니다.',
-      data: updateGroup,
-    };
+    const { userId } = req.user;
+    return await this.groupService.updateGroup(updateGroupDto, userId);
   }
 
-  @UseGuards(AuthGuard('groupJwt'))
+  /**
+   * userFlow => 그룹 코드 업데이트 요청 => 그룹 코드 업데이트 성공
+   * serverFlow => 오너인지 확인 후 오너가 맞다면 => 업데이트
+   * 3계층 순서로 요청을 보냄
+   * Controller(updateCode)
+   * Service(updateCode,getGroup,checkOwner)
+   * Repository(updateCode)
+   * RequsetDto(GetGroupDto)
+   * ResponseDto(UpdateGroupDto)
+   */
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: '그룹 코드 변경' })
   @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 201, type: UpadteGroupResponseDto })
   @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
-  @Patch('update/:groupId')
+  @Patch('update/code')
   @HttpCode(HttpStatus.CREATED)
-  async updateCode(@GroupId() groupId: number) {
-    const updateGroup = await this.groupService.updateCode(groupId);
+  async updateCode(@Body() GetGroupDto: GetGroupDto, @Req() req: JwtRequest) {
+    const { userId } = req.user;
 
-    return {
-      message: '그룹 업데이트에 성공하였습니다.',
-      data: updateGroup,
-    };
+    return await this.groupService.updateCode(GetGroupDto.groupId, userId);
   }
 
-  @ApiOperation({ summary: '그룹 조회' })
+  /**
+   * userFlow => 그룹 이름으로 검색 => 검색 성공 // 대충 구현해놓았는데 안쓸듯?
+   * 3계층 순서로 요청을 보냄
+   * Controller(getGroup)
+   * Service(searchGroups)
+   * Repository(searchGroups)
+   * RequsetDto(GetGroupDto)
+   * ResponseDto(GetGroupsDto)
+   */
+  @ApiOperation({ summary: '그룹 이름 검색' })
   @UseGuards(AuthGuard('jwt'))
   @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 200, type: GetSearchDto })
+  @ApiResponse({ status: 200, type: GetGroupsDto })
   @ApiBody({ type: GetSearchDto })
-  @Get('')
+  @Get('search')
   @HttpCode(HttpStatus.OK)
   async getGroup(@Body() getSearchDto: GetSearchDto) {
-    const getGroup = await this.groupService.searchGroups(getSearchDto);
-
-    return {
-      data: getGroup,
-    };
+    return await this.groupService.searchGroups(getSearchDto);
   }
 
-  @ApiOperation({ summary: '그룹 삭제' })
-  @UseGuards(AuthGuard('groupJwt'))
+  /**
+   * userFlow => 그룹 코드로 검색 =>  성공
+   * 3계층 순서로 요청을 보냄
+   * Controller(getCodeGroup)
+   * Service(getCodeGroup)
+   * Repository(getCodeGroup)
+   * RequsetDto(GetCodeDto)
+   * ResponseDto(GetGroupsDto)
+   */
+  @ApiOperation({ summary: '그룹 코드 검색' })
+  @UseGuards(AuthGuard('jwt'))
   @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 200 })
-  @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
-  @Delete('delete')
+  @ApiResponse({ status: 200, type: GetGroupsDto })
+  @ApiBody({ type: GetCodeDto })
+  @Get('code')
   @HttpCode(HttpStatus.OK)
-  async deleteGroup(@GroupId() groupId: number) {
-    const deleteGroup = await this.groupService.deleteGroup(groupId);
-
-    return {
-      message: '그룹이 정상적으로 해체되었습니다.',
-      data: deleteGroup,
-    };
+  async getCodeGroup(@Body() getCodeDto: GetCodeDto) {
+    return await this.groupService.getCodeGroup(getCodeDto);
   }
 
-  @UseGuards(AuthGuard('groupJwt'))
-  @ApiOperation({ summary: '그룹원 승인' })
+  /**
+   * userFlow => 그룹 삭제 =>  성공
+   * serverFlow => 오너인지 확인 후 오너가 맞다면 => 삭제
+   * 3계층 순서로 요청을 보냄
+   * Controller(deleteGroup)
+   * Service(deleteGroup,getGroup,checkOwner)
+   * Repository(deleteGroup)
+   * RequsetDto(GetGroupDto)
+   * ResponseDto()
+   */
+  @ApiOperation({ summary: '그룹 삭제' })
+  @UseGuards(AuthGuard('jwt'))
   @ApiCookieAuth('accessToken')
-  @ApiResponse({ status: 201, type: InvitationUser })
-  @ApiParam({ name: 'groupId', type: Number, description: '그룹 ID' })
-  @Patch('update/:groupId')
-  @HttpCode(HttpStatus.CREATED)
-  async invitationUser(
-    @Body() invitationUser: InvitationUser,
-    @GroupId() groupId: number,
-  ) {
-    const isAcceptUser = await this.groupService.invitationUser(
-      invitationUser,
-      groupId,
-    );
-
-    return {
-      message: '유저 가입 승인이 완료 되었습니다.',
-      data: isAcceptUser,
-    };
+  @ApiResponse({ status: 204 })
+  @ApiBody({ type: GetGroupDto })
+  @Delete('delete')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteGroup(@Body() getGroupDto: GetGroupDto, @Req() req: JwtRequest) {
+    const { userId } = req.user;
+    return await this.groupService.deleteGroup(getGroupDto.groupId, userId);
   }
 }
